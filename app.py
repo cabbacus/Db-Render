@@ -63,7 +63,6 @@ def dashboard():
         "dashboard.html",
         targets=targets,
         username=session.get("username"),
-        storage_backend=storage.BACKEND_NAME,
     )
 
 
@@ -120,9 +119,6 @@ def check_single_db(url, timeout=5):
             )
 
             if wants_ssl:
-                # Encrypt the connection. We don't pin the provider's CA bundle here,
-                # so we don't verify the cert chain/hostname - fine for a health check,
-                # not something you'd want for a security-sensitive client.
                 ctx = ssl_lib.create_default_context()
                 ctx.check_hostname = False
                 ctx.verify_mode = ssl_lib.CERT_NONE
@@ -145,7 +141,6 @@ def check_single_db(url, timeout=5):
             r.ping()
 
         else:
-            # Generic fallback: just check the host:port is reachable over TCP.
             host = parsed.hostname
             port = parsed.port
             if not host or not port:
@@ -188,8 +183,6 @@ def mask_credentials(url):
 
 # ---------------------------------------------------------------------------
 # Public-ish API: GET /api/health
-# Accessible either via an active login session, or via X-API-KEY header
-# (or ?key=) if HEALTH_API_KEY is configured - handy for uptime monitors.
 # ---------------------------------------------------------------------------
 @app.route("/api/health", methods=["GET"])
 def api_health():
@@ -218,7 +211,6 @@ def api_health():
 
 @app.route("/healthz")
 def healthz():
-    # Simple liveness probe for the app itself (used by Render, not the DBs)
     return jsonify({"status": "ok"})
 
 
