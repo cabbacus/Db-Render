@@ -163,10 +163,9 @@ def run_health_checks():
             {
                 "id": t["id"],
                 "name": t["name"],
-                "url": mask_credentials(t["url"]),
                 "status": status,
                 "error": error,
-                "checked_at": datetime.utcnow().isoformat() + "Z",
+                "checked_at": datetime.utcnow().strftime("%d-%m-%Y %H:%M")
             }
         )
     return results
