@@ -3,7 +3,7 @@ import socket
 import sqlite3
 from datetime import datetime
 from functools import wraps
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
@@ -137,9 +137,17 @@ def check_single_db(url, timeout=5):
             conn.close()
 
         elif scheme.startswith("mysql"):
+            import ssl as ssl_lib
+
             import pymysql
 
-            conn = pymysql.connect(
+            query = parse_qs(parsed.query)
+            wants_ssl = any(
+                query.get(k, [""])[0].upper() in ("REQUIRED", "TRUE", "1", "VERIFY_CA", "VERIFY_IDENTITY")
+                for k in ("ssl-mode", "sslmode", "ssl")
+            )
+
+            connect_kwargs = dict(
                 host=parsed.hostname,
                 port=parsed.port or 3306,
                 user=parsed.username,
@@ -147,6 +155,17 @@ def check_single_db(url, timeout=5):
                 database=parsed.path.lstrip("/") or None,
                 connect_timeout=timeout,
             )
+
+            if wants_ssl:
+                # Encrypt the connection. We don't pin the provider's CA bundle here,
+                # so we don't verify the cert chain/hostname - fine for a health check,
+                # not something you'd want for a security-sensitive client.
+                ctx = ssl_lib.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl_lib.CERT_NONE
+                connect_kwargs["ssl"] = ctx
+
+            conn = pymysql.connect(**connect_kwargs)
             conn.close()
 
         elif scheme.startswith("mongodb"):
