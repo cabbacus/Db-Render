@@ -1,5 +1,76 @@
-__pycache__/
-*.pyc
-storage.db
-.env
+# Virtual environments
+.venv/
 venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Allow example env file
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Flask
+instance/
+.webassets-cache/
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Render
+.render/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+*.pid
+*.swp
