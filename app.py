@@ -1,12 +1,13 @@
 import os
 import socket
-import sqlite3
 from datetime import datetime
 from functools import wraps
 from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
-from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+
+import storage
 
 load_dotenv()  # reads variables from a local .env file, if one exists
 
@@ -16,41 +17,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "admin123")
 HEALTH_API_KEY = os.environ.get("HEALTH_API_KEY")  # optional, for unauthenticated monitoring access
-
-DB_PATH = os.environ.get("STORAGE_DB_PATH", os.path.join(os.path.dirname(__file__), "storage.db"))
-
-
-# ---------------------------------------------------------------------------
-# Storage (SQLite) - holds the list of database URLs the user wants to watch
-# ---------------------------------------------------------------------------
-def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-    return g.db
-
-
-@app.teardown_appcontext
-def close_db(exception=None):
-    db = g.pop("db", None)
-    if db is not None:
-        db.close()
-
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS db_targets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            url TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
-    conn.commit()
-    conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -92,9 +58,13 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
-    db = get_db()
-    targets = db.execute("SELECT * FROM db_targets ORDER BY created_at DESC").fetchall()
-    return render_template("dashboard.html", targets=targets, username=session.get("username"))
+    targets = storage.list_targets()
+    return render_template(
+        "dashboard.html",
+        targets=targets,
+        username=session.get("username"),
+        storage_backend=storage.BACKEND_NAME,
+    )
 
 
 @app.route("/add", methods=["POST"])
@@ -103,21 +73,14 @@ def add_target():
     name = request.form.get("name", "").strip()
     url = request.form.get("url", "").strip()
     if name and url:
-        db = get_db()
-        db.execute(
-            "INSERT INTO db_targets (name, url, created_at) VALUES (?, ?, ?)",
-            (name, url, datetime.utcnow().isoformat()),
-        )
-        db.commit()
+        storage.add_target(name, url)
     return redirect(url_for("dashboard"))
 
 
-@app.route("/delete/<int:target_id>", methods=["POST"])
+@app.route("/delete/<target_id>", methods=["POST"])
 @login_required
 def delete_target(target_id):
-    db = get_db()
-    db.execute("DELETE FROM db_targets WHERE id = ?", (target_id,))
-    db.commit()
+    storage.delete_target(target_id)
     return redirect(url_for("dashboard"))
 
 
@@ -197,8 +160,7 @@ def check_single_db(url, timeout=5):
 
 
 def run_health_checks():
-    db = get_db()
-    targets = db.execute("SELECT * FROM db_targets ORDER BY created_at DESC").fetchall()
+    targets = storage.list_targets()
     results = []
     for t in targets:
         status, error = check_single_db(t["url"])
@@ -260,8 +222,8 @@ def healthz():
     return jsonify({"status": "ok"})
 
 
-init_db()
+storage.init_storage()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)

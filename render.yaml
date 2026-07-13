@@ -12,5 +12,7 @@ services:
         value: admin
       - key: APP_PASSWORD
         sync: false
+      - key: METADATA_DATABASE_URL
+        sync: false
       - key: HEALTH_API_KEY
         sync: false

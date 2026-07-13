@@ -21,6 +21,14 @@
   <div class="container">
 
     <p class="section-title">Add a database</p>
+    {% if storage_backend == 'sqlite' %}
+    <div class="error-box" style="margin-bottom: 20px;">
+      Storage is running on local SQLite. On Render's free tier this list will be lost whenever the app spins down from inactivity.
+      Set <code>METADATA_DATABASE_URL</code> to a Postgres or MongoDB connection string for persistence — see the README.
+    </div>
+    {% else %}
+    <p class="api-hint" style="margin: -6px 0 20px;">Storage backend: <code>{{ storage_backend }}</code></p>
+    {% endif %}
     <div class="panel">
       <form class="add-form" method="POST" action="{{ url_for('add_target') }}">
         <div>
