@@ -12,11 +12,11 @@ Supports Postgres, MySQL, MongoDB, and Redis URLs out of the box, plus a generic
 
 ```bash
 pip install -r requirements.txt
-export APP_USERNAME=admin
-export APP_PASSWORD=choose-a-real-password
-export SECRET_KEY=some-random-string
+cp .env.example .env   # then edit .env with your own values
 python app.py
 ```
+
+`.env` is loaded automatically on startup (via `python-dotenv`) — no need to `export` anything by hand. It's already in `.gitignore` so it won't get committed.
 
 Visit `http://localhost:5000`, log in, and start adding database URLs, e.g.:
 
@@ -36,7 +36,7 @@ Click **Check database health** to see live status. The same data is available a
    - Or **New → Web Service** manually with:
      - Build command: `pip install -r requirements.txt`
      - Start command: `gunicorn app:app`
-3. Set these environment variables in the Render dashboard:
+3. Set these environment variables in the Render dashboard (`.env` is only for local development — Render doesn't read that file, it uses its own env var settings):
    | Variable | Purpose |
    |---|---|
    | `SECRET_KEY` | Random string for session security (Render can auto-generate) |

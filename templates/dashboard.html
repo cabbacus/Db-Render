@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DB Pulse · Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">●</span>
+      <span class="brand-name">DB Pulse</span>
+    </div>
+    <div class="topbar-right">
+      <span>{{ username }}</span>
+      <a href="{{ url_for('logout') }}" style="color: var(--text-dim); text-decoration: none;">Log out</a>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <p class="section-title">Add a database</p>
+    <div class="panel">
+      <form class="add-form" method="POST" action="{{ url_for('add_target') }}">
+        <div>
+          <label for="name">Label</label>
+          <input type="text" id="name" name="name" placeholder="e.g. Orders DB" required />
+        </div>
+        <div>
+          <label for="url">Database URL</label>
+          <input type="text" id="url" name="url" placeholder="postgresql://user:pass@host:5432/dbname" required />
+        </div>
+        <button type="submit" class="btn" style="width:auto; padding: 11px 20px;">Add</button>
+      </form>
+    </div>
+
+    <div class="summary-row">
+      <p class="section-title" style="margin:0;">Monitored databases</p>
+      <button id="check-btn" class="btn btn-secondary" style="width:auto; padding: 9px 16px;">
+        Check database health
+      </button>
+    </div>
+
+    <div class="panel">
+      <div class="summary-stats" id="summary-stats" style="margin-bottom: {{ 'inherit' if targets else '0' }};">
+        <span><span class="stat-dot dot-running"></span><span id="count-running">0</span> running</span>
+        <span><span class="stat-dot dot-stopped"></span><span id="count-stopped">0</span> stopped</span>
+        <span id="last-checked" style="color: var(--text-dim);"></span>
+      </div>
+
+      {% if targets %}
+      <div class="target-list" id="target-list">
+        {% for t in targets %}
+        <div class="target-row" data-id="{{ t['id'] }}">
+          <span class="status-dot" id="dot-{{ t['id'] }}"></span>
+          <div class="target-info">
+            <div class="target-name">{{ t['name'] }}</div>
+            <div class="target-url">{{ t['url'] }}</div>
+          </div>
+          <span class="status-label status-unknown" id="status-{{ t['id'] }}">not checked</span>
+          <form method="POST" action="{{ url_for('delete_target', target_id=t['id']) }}" onsubmit="return confirm('Remove this database?');">
+            <button type="submit" class="icon-btn">Remove</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" id="empty-state">No databases added yet. Add one above to start monitoring.</div>
+      {% endif %}
+
+      <p class="api-hint">
+        Live JSON status is always available at <code>/api/health</code>
+        {% if targets %}— click "Check database health" above to run it now.{% endif %}
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    const checkBtn = document.getElementById('check-btn');
+    const lastChecked = document.getElementById('last-checked');
+    const countRunning = document.getElementById('count-running');
+    const countStopped = document.getElementById('count-stopped');
+
+    async function runHealthCheck() {
+      checkBtn.disabled = true;
+      checkBtn.textContent = 'Checking…';
+
+      document.querySelectorAll('.status-label').forEach(el => {
+        el.textContent = 'checking…';
+        el.className = 'status-label status-checking';
+      });
+
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+
+        let running = 0, stopped = 0;
+
+        (data.databases || []).forEach(db => {
+          const dot = document.getElementById('dot-' + db.id);
+          const label = document.getElementById('status-' + db.id);
+          if (!dot || !label) return;
+
+          dot.className = 'status-dot ' + (db.status === 'running' ? 'dot-running' : 'dot-stopped');
+          label.className = 'status-label ' + (db.status === 'running' ? 'status-running' : 'status-stopped');
+          label.textContent = db.status === 'running' ? 'running' : 'stopped';
+          label.title = db.error || '';
+
+          if (db.status === 'running') running++; else stopped++;
+        });
+
+        countRunning.textContent = running;
+        countStopped.textContent = stopped;
+        lastChecked.textContent = 'checked ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        lastChecked.textContent = 'health check failed';
+      } finally {
+        checkBtn.disabled = false;
+        checkBtn.textContent = 'Check database health';
+      }
+    }
+
+    checkBtn.addEventListener('click', runHealthCheck);
+  </script>
+</body>
+</html>
